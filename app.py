@@ -27,9 +27,17 @@ if prompt := st.chat_input("Tulis pesan di sini..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        messages = [{"role": "user", "content": prompt}]
-        outputs = pipe(messages, max_new_tokens=200, temperature=0.7)
-        response = outputs[0]["generated_text"][-1]["content"]
-        st.markdown(response)
-        
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        with st.spinner("Sedang berpikir..."):
+            try:
+                # Menghasilkan respon dari Qwen
+                outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7)
+                response_text = outputs[0]["generated_text"]
+                
+                # Membersihkan output agar tidak menampilkan ulang teks prompt pengguna
+                if response_text.startswith(prompt):
+                    response_text = response_text[len(prompt):].strip()
+                
+                st.markdown(response_text)
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+            except Exception as e:
+                st.error(f"Terjadi error: {e}")
