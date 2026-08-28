@@ -2,7 +2,7 @@ import streamlit as st
 from transformers import pipeline
 
 st.set_page_config(page_title="AI Chatbot Free", page_icon="🤖")
-st.title("🤖 AI Assistant (zyAI)")
+st.title("🤖 GhazyAI (ZyBot)")
 
 @st.cache_resource
 def load_model():
