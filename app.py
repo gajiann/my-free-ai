@@ -1,35 +1,49 @@
 import streamlit as st
-from transformers import pipeline
+import google.generativeai as genai
+from PIL import Image
 
-st.set_page_config(page_title="AI Chatbot Free", page_icon="🤖")
-st.title("🤖 AI Assistant (Free & No Captcha)")
+st.set_page_config(page_title="AI Assistant + Vision", page_icon="🤖")
+st.title("🤖 AI Assistant (Text & Vision)")
 
-# Memuat model AI secara memori-efisien
-@st.cache_resource
-def load_model():
-    return pipeline("text-generation", model="Qwen/Qwen2.5-0.5B-Instruct")
+# Masukkan API Key
+api_key = st.sidebar.text_input("Masukkan Gemini API Key:", type="password")
 
-pipe = load_model()
+if api_key:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Simpan riwayat chat
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+    # Fitur Upload Gambar
+    uploaded_file = st.sidebar.file_uploader("Unggah Foto (Opsional):", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Foto yang diunggah", use_column_width=True)
 
-# Tampilkan riwayat chat di layar
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    # Chat History
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-# Input dari pengguna
-if prompt := st.chat_input("Tulis pesan di sini..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    with st.chat_message("assistant"):
-        messages = [{"role": "user", "content": prompt}]
-        outputs = pipe(messages, max_new_tokens=200, temperature=0.7)
-        response = outputs[0]["generated_text"][-1]["content"]
-        st.markdown(response)
-        
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    # Input Prompt
+    if prompt := st.chat_input("Tulis pesan di sini..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Mikir sebentar..."):
+                try:
+                    if uploaded_file:
+                        response = model.generate_content([prompt, image])
+                    else:
+                        response = model.generate_content(prompt)
+                    
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                except Exception as e:
+                    st.error(f"Error: {e}")
+else:
+    st.info("👈 Silakan masukkan Gemini API Key kamu di sidebar sebelah kiri untuk mulai!")
