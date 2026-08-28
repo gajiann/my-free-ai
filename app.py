@@ -1,44 +1,35 @@
 import streamlit as st
-import google.generativeai as genai
-from PIL import Image
+from transformers import pipeline
 
-st.set_page_config(page_title="AI Assistant", page_icon="🤖")
-st.title("🤖 AI Assistant")
+st.set_page_config(page_title="AI Chatbot Free", page_icon="🤖")
+st.title("🤖 AI Assistant (Free & No Captcha)")
 
-api_key = st.sidebar.text_input("Masukkan Gemini API Key:", type="password")
+# Memuat model AI secara memori-efisien
+@st.cache_resource
+def load_model():
+    return pipeline("text-generation", model="Qwen/Qwen2.5-0.5B-Instruct")
 
-if api_key:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
+pipe = load_model()
 
-    uploaded_file = st.sidebar.file_uploader("Unggah Foto (Opsional):", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Foto diunggah", use_column_width=True)
+# Simpan riwayat chat
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+# Tampilkan riwayat chat di layar
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# Input dari pengguna
+if prompt := st.chat_input("Tulis pesan di sini..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    if prompt := st.chat_input("Tulis pesan..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            try:
-                if uploaded_file:
-                    response = model.generate_content([prompt, image])
-                else:
-                    response = model.generate_content(prompt)
-                
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except Exception as e:
-                st.error(f"Error: {e}")
-else:
-    st.info("👈 Masukkan API Key di sidebar!")
+    with st.chat_message("assistant"):
+        messages = [{"role": "user", "content": prompt}]
+        outputs = pipe(messages, max_new_tokens=200, temperature=0.7)
+        response = outputs[0]["generated_text"][-1]["content"]
+        st.markdown(response)
+        
+    st.session_state.messages.append({"role": "assistant", "content": response})
